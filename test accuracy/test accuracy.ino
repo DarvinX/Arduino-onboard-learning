@@ -218,7 +218,7 @@ float tPos = 0;
 void test(int featureNum=MAX_FEATURE_NUM, int testSamplesStartingIndex=80){
 Serial.print("test accurecy ");
 correctOutput = 0;
-for(int testN = 0; testN < TOTAL_SAMPLE_NUM; testN++){
+for(int testN = 80; testN < TOTAL_SAMPLE_NUM; testN++){
 score = 0;
   for (int i = 0; i < featureNum; i++) {
     featuresForFFT[i] = pgm_read_byte(&rawData[testN][i+1]);
@@ -233,7 +233,7 @@ score = 0;
   correctOutput++;
 }
 
-Serial.print(correctOutput);  
+Serial.print(correctOutput*100/20);  
 Serial.println("%");
 }
 
