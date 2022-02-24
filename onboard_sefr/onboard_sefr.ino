@@ -16,10 +16,10 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #include <arduinoFFT.h>
 
 #define INTERVAL 100
-#define FEATURE_NUM 64
+#define FEATURE_NUM 32
 #define MIC A0
 #define THRESHOLD 11
-#define SAMPLE_NUM 50
+#define SAMPLE_NUM 40
 
 float features[FEATURE_NUM];
 double featuresForFFT[FEATURE_NUM];
@@ -51,11 +51,11 @@ void setup() {
   // put your setup code here, to run once:
   pinMode(MIC, INPUT);
 
-  Serial.begin(115200);
+  begin(115200);
 #ifdef USE_OLED
-  Serial.println("use oled");
+  println("use oled");
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3c)) {
-    Serial.println(F("Could not connect to the display"));
+    println(F("Could not connect to the display"));
     while (true) {};
   }
   display.clearDisplay();
@@ -63,7 +63,7 @@ void setup() {
   display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
 
-  Serial.println("use oled");
+  println("use oled");
   display.println(F("T Hansda"));
   display.display();
   delay(2000);
@@ -81,22 +81,22 @@ void setup() {
   delay(2000);
   train();
 #else
-  Serial.println("t: train, p: predict");
-  while (!Serial.available() > 0) {
+  println("t: train, p: predict");
+  while (!available() > 0) {
   }
-  switch (Serial.read()) {
+  switch (read()) {
     case 116:
-      Serial.println("starting training");
+      println("starting training");
       collectSamples();
       train();
       saveWeights();
       break;
     case 112:
-      Serial.println("Prediction mode");
+      println("Prediction mode");
       predict();
       break;
   }
-  Serial.println("Prediction mode");
+  println("Prediction mode");
 #endif
 
 }
@@ -149,7 +149,7 @@ void train() {
 
   //  eq 9
   Bias = (negCount * (tPos / posCount) + posCount * (tNeg / negCount)) / (negCount + posCount);
-  //  Serial.println("Training complete");
+  //  println("Training complete");
 #ifdef USE_OLED
   display.clearDisplay();
 #endif
@@ -162,6 +162,7 @@ void saveWeights() {
 void predict() {
 
 }
+
 void collectSamples() {
   for (int j = 0; j < SAMPLE_NUM; j++) {
     randomClass = random(2);
@@ -178,9 +179,9 @@ void collectSamples() {
     }
     display.display();
 #else
-    Serial.print("provide sample no ");
-    Serial.print(j);
-    Serial.println(randomClass ? " class True" : " class False");
+    print("provide sample no ");
+    print(j);
+    println(randomClass ? " class True" : " class False");
 #endif
     dataset[j][0] = randomClass;
 
@@ -188,7 +189,7 @@ void collectSamples() {
     }
 
     for (int i = 0; i < FEATURE_NUM; i++) {
-      //      Serial.println(readData());
+      //      println(readData());
       featuresForFFT[i] = readData() - THRESHOLD;
 
     }
@@ -198,7 +199,7 @@ void collectSamples() {
 
       //      features[i] = abs(featuresForFFT[i]);
       dataset[j][i + 1] = min(abs(featuresForFFT[i]) * 100, 255);
-      //      Serial.println(dataset[j][i + 1]);
+      //      println(dataset[j][i + 1]);
     }
 
     delay(INTERVAL);
@@ -210,14 +211,14 @@ void collectSamples() {
   display.display();
   delay(2000);
 #else
-  Serial.println("Sample Collection complete");
+  println("Sample Collection complete");
 #endif
 }
 
 void loop() {
 
 #ifdef USE_OLED
-  Serial.println("predicting");
+  println("predicting");
   display.clearDisplay();
 
   display.setCursor(0, 0);
@@ -225,12 +226,12 @@ void loop() {
   display.println(predCount);
   display.display();
 #else
-  Serial.print("Predicted Class: ");
+  print("Predicted Class: ");
 #endif
   while (!(readData() >  THRESHOLD)) {}
   score = 0;
   for (int i = 0; i < FEATURE_NUM; i++) {
-    //      Serial.println(readData());
+    //      println(readData());
     featuresForFFT[i] = readData() - THRESHOLD;
 
   }
@@ -239,7 +240,7 @@ void loop() {
   for (int i = 0; i < FEATURE_NUM; i++) {
     //      features[i] =
     score += weights[i] * min(abs(featuresForFFT[i]) * 100, 255);
-    //      Serial.println(abs(featuresForFFT[i]));
+    //      println(abs(featuresForFFT[i]));
 
   }
 
@@ -257,7 +258,7 @@ void loop() {
   display.display();
   delay(1500);
 #else
-  Serial.println(score >= Bias ? "True" : "False");
+  println(score >= Bias ? "True" : "False");
   delay(INTERVAL);
 #endif
 
@@ -266,4 +267,44 @@ void loop() {
 
 int16_t readData() {
   return ((analogRead(MIC) - 512) >> 2);
+}
+
+void begin(unsigned int boudrate) {
+  unsigned int ubrr = F_CPU / 16 / boudrate - 1;
+
+  UBRR0H = (unsigned char)(ubrr >> 8);
+  UBRR0L = (unsigned char)(ubrr);
+
+  UCSR0B = (1 << RXEN0) | (1 << TXEN0);
+  UCSR0C = (1 << USBS0) | (3 << UCSZ00);
+}
+
+void transmit(char data) {
+  while (!(UCSR0A & (1 << UDRE0)))
+    ;
+  UDR0 = data;
+}
+
+void print(char *data) {
+  while (data != "") {
+    transmit(*data);
+    data++;
+  }
+}
+
+void println(char *data) {
+   while (*data != '\0') {
+    transmit(*data);
+    data++;
+  }
+  transmit('\n');
+  transmit('\r');
+}
+
+char read(){
+  return UDR0;
+}
+
+bool available(){
+  return !(UCSR0A & (1<<RXC0));
 }
